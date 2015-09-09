@@ -14,8 +14,17 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include(blog_urls))
 """
 from django.conf.urls import include, url
-from django.contrib import admin
+from rest_framework.routers import DefaultRouter
+from snippets import views
 
+# Se crea un router y se registran los ViewSets a el
+router = DefaultRouter()
+router.register(r'snippets', views.SnippetViewSet)
+router.register(r'users', views.UserViewSet)
+
+# Las URLs de la API son creadas automaticamente por el router
+# Adicionalmente se incluyen vistas Login y Logout para la API en el navegador
 urlpatterns = [
-    url(r'^', include('snippets.urls')),
+	url(r'^', include(router.urls)),
+	url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]

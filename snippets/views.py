@@ -2,15 +2,18 @@ from snippets.models import Snippet
 from snippets.serializers import SnippetSerializer
 from snippets.serializers import UserSerializer
 from rest_framework.decorators import api_view
+from rest_framework.decorators import detail_route
 from rest_framework import mixins
 from rest_framework import generics
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework import renderers
+from rest_framework import viewsets
 from snippets.permissions import IsOwnerOrReadOnly
 from django.contrib.auth.models import User
 
+# Este metodo ya no es necesario debido a que el DefaultRouter crea la vista raiz automaticamente
 @api_view(('GET', ))
 def api_root(request, format=None):
     return Response({
@@ -18,6 +21,34 @@ def api_root(request, format=None):
             'snippets': reverse('snippet-list', request=request, format=format)
         })
 
+# Usando ViewSets ----------------------------------------------------------------
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Este ViewSet provee automaticamente acciones de listado y de detalle
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+class SnippetViewSet(viewsets.ModelViewSet):
+    """
+    Este ViewSet automaticamente provee acciones para listar, crear, obtener, 
+    actualizar y eliminar.
+
+    Adicionalmente se proveera una accion extra para el highlight
+    """
+    queryset = Snippet.objects.all()
+    serializer_class = SnippetSerializer
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly, )
+
+    @detail_route(renderer_classes=(renderers.StaticHTMLRenderer, ))
+    def highlight(self, request, *args, **kwargs):
+        snippet = self.get_object()
+        return Response(snippet.highlighted)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+# Usando Mixin Generics ----------------------------------------------------------------
 class SnippetHighlight(generics.GenericAPIView):
     queryset = Snippet.objects.all()
     renderer_classes = (renderers.StaticHTMLRenderer, )
@@ -26,7 +57,6 @@ class SnippetHighlight(generics.GenericAPIView):
         snippet = self.get_object()
         return Response(snippet.highlighted)
 
-# Usando Mixin Generics ----------------------------------------------------------------
 class SnippetList(generics.ListCreateAPIView):
     queryset = Snippet.objects.all()
     serializer_class = SnippetSerializer
